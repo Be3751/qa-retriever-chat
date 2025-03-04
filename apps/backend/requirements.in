@@ -1,0 +1,14 @@
+azure-identity
+quart
+quart-cors
+openai[datalib]==0.28
+tiktoken
+azure-search-documents
+azure-storage-blob
+uvicorn[standard]
+aiohttp
+opentelemetry-instrumentation==0.50b0
+msal
+msal-extensions
+msgraph-sdk
+markitdown
