@@ -13,8 +13,8 @@ interface Props {
     isSelected?: boolean;
     isStreaming: boolean;
     onCitationClicked: (hit_id: string, web_url: string, file_name: string) => void;
-    onThoughtProcessClicked: () => void;
-    onSupportingContentClicked: () => void;
+    // onThoughtProcessClicked: () => void;
+    // onSupportingContentClicked: () => void;
     onFollowupQuestionClicked?: (question: string) => void;
     showFollowupQuestions?: boolean;
 }
@@ -24,8 +24,8 @@ export const Answer = ({
     isSelected,
     isStreaming,
     onCitationClicked,
-    onThoughtProcessClicked,
-    onSupportingContentClicked,
+    // onThoughtProcessClicked,
+    // onSupportingContentClicked,
     onFollowupQuestionClicked,
     showFollowupQuestions
 }: Props) => {
@@ -45,16 +45,16 @@ export const Answer = ({
                             iconProps={{ iconName: "Lightbulb" }}
                             title="Show thought process"
                             ariaLabel="Show thought process"
-                            onClick={() => onThoughtProcessClicked()}
-                            disabled={!answer.choices[0].context.thoughts?.length}
+                            // onClick={() => onThoughtProcessClicked()}
+                            // disabled={!answer.choices[0].context.thoughts?.length}
                         />
                         <IconButton
                             style={{ color: "black" }}
                             iconProps={{ iconName: "ClipboardList" }}
                             title="Show supporting content"
                             ariaLabel="Show supporting content"
-                            onClick={() => onSupportingContentClicked()}
-                            disabled={!answer.choices[0].context.data_points?.length}
+                            // onClick={() => onSupportingContentClicked()}
+                            // disabled={!answer.choices[0].context.data_points?.length}
                         />
                     </div>
                 </Stack>
@@ -64,7 +64,7 @@ export const Answer = ({
                 <div className={styles.answerText} dangerouslySetInnerHTML={{ __html: sanitizedAnswerHtml }}></div>
             </Stack.Item>
 
-            {!!parsedAnswer.citations.length && (
+            {/* {!!parsedAnswer.citations.length && (
                 <Stack.Item>
                     <Stack horizontal wrap tokens={{ childrenGap: 5 }}>
                         <span className={styles.citationLearnMore}>引用:</span>
@@ -78,7 +78,7 @@ export const Answer = ({
                         })}
                     </Stack>
                 </Stack.Item>
-            )}
+            )} */}
 
             {!!parsedAnswer.followupQuestions.length && showFollowupQuestions && onFollowupQuestionClicked && (
                 <Stack.Item>

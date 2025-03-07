@@ -131,6 +131,7 @@ const Chat = () => {
             };
 
             const response = await chatApi(request, token?.accessToken);
+            console.log("れすぽんす"+response);
             if (!response.body) {
                 throw Error("No response body");
             }
@@ -262,8 +263,8 @@ const Chat = () => {
                                                 answer={streamedAnswer[1]}
                                                 isSelected={false}
                                                 onCitationClicked={(hit_id, web_url, file_name) => onShowCitation(hit_id, web_url, file_name, index)}
-                                                onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                                onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
+                                                // onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
+                                                // onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
                                                 onFollowupQuestionClicked={q => makeApiRequest(q)}
                                                 showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
                                             />
@@ -281,8 +282,8 @@ const Chat = () => {
                                                 answer={answer[1]}
                                                 isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
                                                 onCitationClicked={(hit_id, web_url, file_name) => onShowCitation(hit_id, file_name, web_url, index)}
-                                                onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                                onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
+                                                // onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
+                                                // onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
                                                 onFollowupQuestionClicked={q => makeApiRequest(q)}
                                                 showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
                                             />
@@ -319,7 +320,7 @@ const Chat = () => {
                     </div>
                 </div>
 
-                {answers.length > 0 && activeAnalysisPanelTab && (
+                {/* {answers.length > 0 && activeAnalysisPanelTab && (
                     <AnalysisPanel
                         className={styles.chatAnalysisPanel}
                         activeCitation={activeCitation}
@@ -330,7 +331,7 @@ const Chat = () => {
                         activeFileName={activeFileName}
                         activeWebURL={activeWebURL}
                     />
-                )}
+                )} */}
 
                 <Panel
                     headerText="Configure answer generation"

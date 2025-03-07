@@ -3,6 +3,7 @@ import json
 
 from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential
+from azure.core.credentials import AzureKeyCredential
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes.models import (
@@ -16,18 +17,20 @@ from azure.search.documents.indexes.models import (
 import openai
 import uuid
 
-credential = DefaultAzureCredential()
-
 load_dotenv()
 AZURE_AI_SEARCH_ENDPOINT = os.getenv("AZURE_AI_SEARCH_ENDPOINT")
 AZURE_AI_SEARCH_INDEX_NAME = os.getenv("AZURE_AI_SEARCH_INDEX_NAME")
 AZURE_OPENAI_ACCOUNT = os.getenv("AZURE_OPENAI_ACCOUNT")
 AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+AZURE_AI_SEARCH_API_KEY = os.getenv("AZURE_AI_SEARCH_API_KEY")
 print(f"Creating search index \"{AZURE_AI_SEARCH_INDEX_NAME}\" in \"{AZURE_AI_SEARCH_ENDPOINT}\"")
 print(f"Using OpenAI account \"{AZURE_OPENAI_ACCOUNT}\" and deployment \"{AZURE_OPENAI_EMBEDDING_DEPLOYMENT}\"")
 
+credential = DefaultAzureCredential()
+key_credential = AzureKeyCredential(AZURE_AI_SEARCH_API_KEY)
+
 # Create a search index  
-index_client = SearchIndexClient(endpoint=AZURE_AI_SEARCH_ENDPOINT, credential=credential)  
+index_client = SearchIndexClient(endpoint=AZURE_AI_SEARCH_ENDPOINT, credential=key_credential)  
 
 # Delete the search index if it exists
 try:
@@ -117,7 +120,7 @@ for file_info in file_info_list:
 search_client = SearchClient(
     endpoint=AZURE_AI_SEARCH_ENDPOINT,
     index_name=AZURE_AI_SEARCH_INDEX_NAME,
-    credential=credential
+    credential=key_credential
 )
 search_client.upload_documents(documents)
 print(f"Uploaded {len(documents)} chunked documents to index \"{AZURE_AI_SEARCH_INDEX_NAME}\"")

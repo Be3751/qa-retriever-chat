@@ -15,7 +15,9 @@ from core.graphclientbuilder import GraphClientBuilder
 from azure.search.documents import SearchClient, SearchItemPaged
 from azure.search.documents.models import VectorizedQuery
 from azure.identity import DefaultAzureCredential
+from azure.core.credentials import AzureKeyCredential
 import asyncio
+import os
 
 class ChatReadRetrieveReadApproach(Approach):
     # Chat roles
@@ -210,20 +212,12 @@ If you cannot generate a search query, return only the number 0.
         obo_token,
         session_state: Any = None,
     ) -> dict[str, Any]:
-        # extra_info, chat_coroutine = await self.run_simple_chat(
-        #     history, obo_token, should_stream=False
-        # )
-        # print("simple chat: "+str(extra_info))
-        extra_info, chat_coroutine = await self.run_ai_search_chat(
+        chat_coroutine = await self.run_ai_search_chat(
             history, obo_token
         )
-        print("ai search chat: "+str(extra_info))
+        print("ai search chat: "+str(chat_coroutine))
 
-        #extra_info, chat_coroutine = await self.run_until_final_call(
-        #    history, overrides, auth_claims, should_stream=False
-        #)
         chat_resp = dict(chat_coroutine)
-        chat_resp["choices"][0]["context"] = extra_info
         chat_resp["choices"][0]["session_state"] = session_state
         return chat_resp
 
@@ -323,14 +317,18 @@ If you cannot generate a search query, return only the number 0.
         input_embedding = await self.__embed_text(user_input)
 
         # Step 2: Vector search using the embedding
+        # TODO: ハイブリッド検索を行う
         search_results = self.__perform_vector_search(input_embedding)
 
+        # TODO: 取り急ぎ、最初の検索結果のコンテンツを取得するが、
+        # 複数のコンテンツがある場合に最も類似度が高いものを選択するように変更する
+        src_content = search_results[0]["chunk"]
         # Step 3: Retrieve content and citations from search results
-        content, citations = await self.__retrieve_content(obo_token, search_results)
+        # content, citations = await self.__retrieve_content(obo_token, search_results)
 
         # Step 4: Generate answer using citation sources
-        chat_coroutine = await self.__answer_using_document(content, history, should_stream)
-        return ({"data_points": citations}, chat_coroutine)
+        chat_coroutine = await self.__answer_using_document(src_content, history, should_stream)
+        return chat_coroutine
     
     async def __embed_text(self, text: str):
         chatgpt_args = {"deployment_id": self.embedding_deployment} if self.openai_host == "azure" else {}
@@ -343,10 +341,12 @@ If you cannot generate a search query, return only the number 0.
         return embedding
 
     def __perform_vector_search(self, input_embedding: float):
+        AZURE_AI_SEARCH_API_KEY = os.getenv("AZURE_AI_SEARCH_API_KEY")
+        key_credential = AzureKeyCredential(AZURE_AI_SEARCH_API_KEY)
         client = SearchClient(
             endpoint=self.ai_search_endpoint,
             index_name=self.ai_search_index_name,
-            credential=DefaultAzureCredential()
+            credential=key_credential
         )
 
         vector = VectorizedQuery(
@@ -432,7 +432,7 @@ If you cannot generate a search query, return only the number 0.
         logging.info(f"Retrieved item: {result}")
         return result
     
-    async def __answer_using_document(self, content: str, history: list[dict[str, str]], should_stream: bool = False):
+    async def __answer_using_document(self, src_content: str, history: list[dict[str, str]], should_stream: bool = False):
         original_user_query = history[-1]["content"]
         response_token_limit = 1024
         messages_token_limit = self.chatgpt_token_limit - response_token_limit
@@ -440,9 +440,11 @@ If you cannot generate a search query, return only the number 0.
             system_prompt=self.system_message_chat_conversation,
             model_id=self.chatgpt_model,
             history=history,
-            user_content=original_user_query + "\n\nSources:\n" + content,
+            user_content=original_user_query + "\n\nSources:\n" + src_content,
             max_tokens=messages_token_limit,
         )
+
+        print("これをAIに聞いてます:"+str(answer_messages))
 
         chatgpt_args = {"deployment_id": self.chatgpt_deployment} if self.openai_host == "azure" else {}
         chat_coroutine = await openai.ChatCompletion.acreate(
