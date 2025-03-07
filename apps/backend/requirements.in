@@ -5,7 +5,7 @@ openai[datalib]==0.28
 tiktoken
 azure-search-documents
 azure-storage-blob
-uvicorn[standard]
+gunicorn
 aiohttp
 opentelemetry-instrumentation==0.50b0
 msal
