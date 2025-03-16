@@ -46,7 +46,7 @@ const Chat = () => {
     const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([]);
     const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([]);
 
-    const handleAsyncRequest = async (question: string, answers: [string, ChatAppResponse][], setAnswers: Function, responseBody: ReadableStream<any>) => {
+    const handleAsyncRequest = async (question: string, answers: [string, ChatAppResponse][], setAnswers: Function, responseBody: ReadableStream<any>) => { 
         let answer: string = "";
         let askResponse: ChatAppResponse = {} as ChatAppResponse;
 
@@ -80,7 +80,7 @@ const Chat = () => {
         } finally {
             setIsStreaming(false);
         }
-        const fullResponse: ChatAppResponse = { ...askResponse,
+        const fullResponse: ChatAppResponse = { ...JSON.parse(String(askResponse)),
             choices: [{ ...askResponse.choices[0],
                         message: { content: answer,
                             role: askResponse.choices[0].message.role
@@ -131,7 +131,6 @@ const Chat = () => {
             };
 
             const response = await chatApi(request, token?.accessToken);
-            console.log("れすぽんす"+response);
             if (!response.body) {
                 throw Error("No response body");
             }
@@ -279,7 +278,7 @@ const Chat = () => {
                                             <Answer
                                                 isStreaming={false}
                                                 key={index}
-                                                answer={answer[1]}
+                                                answer={typeof answer[1] === "string" ? JSON.parse(answer[1]) : answer[1]}
                                                 isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
                                                 onCitationClicked={(hit_id, web_url, file_name) => onShowCitation(hit_id, file_name, web_url, index)}
                                                 // onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}

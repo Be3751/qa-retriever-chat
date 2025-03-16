@@ -1,7 +1,7 @@
 azure-identity
 quart
 quart-cors
-openai[datalib]==0.28
+openai==1.65.5
 tiktoken
 azure-search-documents
 azure-storage-blob
@@ -12,3 +12,4 @@ msal
 msal-extensions
 msgraph-sdk
 markitdown
+python-dotenv
