@@ -105,11 +105,16 @@ const Chat = () => {
         const token = client ? await getToken(client) : undefined;
 
         try {
-            const messages: ResponseMessage[] = answers.flatMap(a => ([
-                { content: a[0], role: "user" },
-                { content: a[1].choices[0].message.content, role: "assistant" }
-            ]));
+            const messages: ResponseMessage[] = answers.flatMap(a => {
+                const userMessage = a[0];
+                const response = typeof a[1] === "string" ? JSON.parse(a[1]) : a[1];
+                return [
+                    { content: userMessage, role: "user" },
+                    { content: response.choices[0].message.content, role: "assistant" }
+                ];
+            });
 
+            const lastAnswer = answers.length ? answers[answers.length - 1][1] : null;
             const request: ChatAppRequest = {
                 messages: [...messages, { content: question, role: "user" }],
                 stream: shouldStream,
@@ -127,7 +132,7 @@ const Chat = () => {
                     }
                 },
                 // ChatAppProtocol: Client must pass on any session state received from the server
-                session_state: answers.length ? answers[answers.length - 1][1].choices[0].session_state : null
+                // session_state: lastAnswer ? lastAnswer.choices[0].session_state : null
             };
 
             const response = await chatApi(request, token?.accessToken);
@@ -145,6 +150,7 @@ const Chat = () => {
                 setAnswers([...answers, [question, parsedResponse as ChatAppResponse]]);
             }
         } catch (e) {
+            console.error(e);
             setError(e);
         } finally {
             setIsLoading(false);
@@ -245,7 +251,7 @@ const Chat = () => {
                     {!lastQuestionRef.current ? (
                         <div className={styles.chatEmptyState}>
                             <SparkleFilled fontSize={"120px"} primaryFill={"rgba(115, 118, 225, 1)"} aria-hidden="true" aria-label="Chat logo" />
-                            <h1 className={styles.chatEmptyStateTitle}>Chat with your M365 data</h1>
+                            <h1 className={styles.chatEmptyStateTitle}>Generate Answer Example</h1>
                             <h2 className={styles.chatEmptyStateSubtitle}>Ask anything or try an example</h2>
                             <ExampleList onExampleClicked={onExampleClicked} />
                         </div>
@@ -279,6 +285,7 @@ const Chat = () => {
                                                 isStreaming={false}
                                                 key={index}
                                                 answer={typeof answer[1] === "string" ? JSON.parse(answer[1]) : answer[1]}
+                                                // answer={answer[1]}
                                                 isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
                                                 onCitationClicked={(hit_id, web_url, file_name) => onShowCitation(hit_id, file_name, web_url, index)}
                                                 // onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
@@ -312,7 +319,7 @@ const Chat = () => {
                     <div className={styles.chatInput}>
                         <QuestionInput
                             clearOnSend
-                            placeholder="組織内向けChatGPTと会話を始めましょう。"
+                            placeholder="質問を入力してQ&A回答サンプルを生成しましょう。"
                             disabled={isLoading}
                             onSend={question => makeApiRequest(question)}
                         />

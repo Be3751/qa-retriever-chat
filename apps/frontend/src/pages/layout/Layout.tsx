@@ -14,21 +14,11 @@ const Layout = () => {
             <header className={styles.header} role={"banner"}>
                 <div className={styles.headerContainer}>
                     <Link to="/" className={styles.headerTitleContainer}>
-                        <h3 className={styles.headerTitle}>AOAI + AI Search 社内情報検索サンプル</h3>
+                        <h3 className={styles.headerTitle}>AOAI + AI Search Q&A対応サンプル</h3>
                     </Link>
                     <nav>
                         <ul className={styles.headerNavList}>
                             <li className={styles.headerNavLeftMargin}>
-                                <a href="https://github.com/07JP27/azureopenai-internal-microsoft-search" target={"_blank"} title="Github repository link">
-                                    <img
-                                        src={github}
-                                        alt="Github logo"
-                                        aria-label="Link to github repository"
-                                        width="20px"
-                                        height="20px"
-                                        className={styles.githubLogo}
-                                    />
-                                </a>
                             </li>
                         </ul>
                     </nav>

@@ -38,7 +38,10 @@ export const Answer = ({
         <Stack className={`${styles.answerContainer} ${isSelected && styles.selected}`} verticalAlign="space-between">
             <Stack.Item>
                 <Stack horizontal horizontalAlign="space-between">
-                    <AnswerIcon />
+                    <Stack horizontal verticalAlign="center">
+                        <AnswerIcon />
+                        <span style={{ marginLeft: 8, fontWeight: "bold", fontSize: "1.2em" }}>生成された回答例:</span>
+                    </Stack>
                     <div>
                         <IconButton
                             style={{ color: "black" }}

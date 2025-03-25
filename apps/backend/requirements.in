@@ -13,3 +13,4 @@ msal-extensions
 msgraph-sdk
 markitdown
 python-dotenv
+scikit-learn

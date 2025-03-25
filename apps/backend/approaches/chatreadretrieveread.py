@@ -11,11 +11,19 @@ from azure.search.documents import SearchClient
 from azure.search.documents.models import VectorizedQuery
 from azure.core.credentials import AzureKeyCredential
 import dotenv
+from sklearn.feature_extraction.text import TfidfVectorizer
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
 dotenv.load_dotenv()
+
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    'https://cognitiveservices.azure.com/.default',
+)
 aoai_client = AzureOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT_URL"),
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    credential=token_provider,
+    # api_key=os.getenv("AZURE_OPENAI_API_KEY"), # マネージド ID 認証が失敗する場合はこちらを使用
     api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
 )
 
@@ -24,43 +32,31 @@ class ChatReadRetrieveReadApproach(Approach):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
-
     NO_RESPONSE = "0"
 
-    # TODO: 適切なプロンプトに変更する
     """
     Simple retrieve-then-read implementation, using the Cognitive Search and OpenAI APIs directly. It first retrieves
     top documents from search, then constructs a prompt with them, and then uses OpenAI to generate an completion
     (answer) with that prompt.
     """
-    system_message_chat_conversation = """Assistant helps the company employees with their healthcare plan questions, and questions about the employee handbook. Be brief in your answers.
-Answer ONLY with the facts listed in the list of sources below. If there isn't enough information below, say you don't know. Do not generate answers that don't use the sources below. If asking a clarifying question to the user would help, ask the question.
-For tabular information return it as an html table. Do not return markdown format. If the question is not in English, answer in the language used in the question.
-Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response. Use square brackets to reference the source, e.g. [info1.txt]. Don't combine sources, list each source separately, e.g. [info1.txt][info2.pdf].
-{follow_up_questions_prompt}
-{injected_prompt}
-"""
-    follow_up_questions_prompt_content = """Generate three very brief follow-up questions that the user would likely ask next about their healthcare plan and employee handbook.
-Use double angle brackets to reference the questions, e.g. <<Are there exclusions for prescriptions?>>.
-Try not to repeat questions that have already been asked.
-Only generate questions and do not generate any text before or after the questions, such as 'Next Questions'"""
+    system_message_chat_conversation = """あなたは、カスタマーサポートのQ&Aの回答文を生成するエキスパートです。
+                                    ■指示No.1:
+                                    入力された質問に類似した質問とその回答を参考にして、ユーザーの質問に回答する文章を生成してください。
 
-    query_prompt_template = """Below is a history of previous conversations and new questions from users that need to be searched and answered in the knowledge base about the company.
-You have access to the Microsoft Search index, which contains over 100 documents.
-Generate a search query based on the conversation and the new question.
-Do not include the name of the cited file or document (e.g. info.txt or doc.pdf) in the search query term.
-Only display search terms, do not output quotation marks, etc.
-Do not include text in [] or <>> in search query terms.
-Do not include special characters such as [].
-If the question is not in English, generating the search query in the language used in the question.
-If you cannot generate a search query, return only the number 0.
-"""
-    query_prompt_few_shots = [
-        {"role": USER, "content": "私のヘルスプランについて教えてください。"},
-        {"role": ASSISTANT, "content": "利用可能 ヘルスプラン"},
-        {"role": USER, "content": "私のプランには有酸素運動は含まれていますか？"},
-        {"role": ASSISTANT, "content": "ヘルスプラン 有酸素運動 適用範囲"},
-    ]
+                                    ■指示No.2:
+                                    参照情報源にない質問には、「その情報には対応していません」と明確に伝えてください。
+                                    たとえば、以下のような回答を使用できます。
+                                    「申し訳ありませんが、このシステムではその質問には対応できません。」
+                                    「このシステムは指定された情報源に基づいて回答しますが、お探しの情報は含まれていないようです。」
+                                    「該当情報は参照データ内に見つかりませんでした。他の手段でお調べください。」
+
+                                    ■指示No.3:
+                                    また、最新のステータスや個別の事情を確認する質問が入力された場合は、
+                                    「最新状況についてはサポートチームにお問い合わせください。」と返答してください。
+    """
+    system_prompt_classification = """あなたは、カスタマーサポートのQ&Aの問い合わせ文を分析するエキスパートです。 
+                                    Q&Aの担当者に対して、情報の提示を求める質問か、手続きを依頼するアクションの要求かを分類してください。
+                                    アクションならtrue、情報の提示ならfalseです。出力値はtrueかfalseだけにしてください。"""
 
     def __init__(
         self,
@@ -179,21 +175,46 @@ If you cannot generate a search query, return only the number 0.
         obo_token,
         should_stream: bool = False,
     ) -> tuple:
-        # Step 1: Generate embedding from user input
+        # Step 1: Extract keywords from user input
         user_input = history[-1]["content"]
+        keywords = self.__extract_keywords(user_input)
+
+        # Step 2: Generate embedding from user input
         input_embedding = await self.__embed_text(user_input)
 
-        # Step 2: Vector search using the embedding
-        # TODO: ハイブリッド検索を行う
-        search_results = self.__perform_vector_search(input_embedding)
-
-        # TODO: 取り急ぎ、最初の検索結果のコンテンツを取得するが、
-        # 複数のコンテンツがある場合に最も類似度が高いものを選択するように変更する
-        src_content = search_results[0]["chunk"]
+        # Step 3: Hybrid search using the input embedding
+        search_results = self.__perform_hybrid_search(input_embedding, keywords)
+        if len(search_results) == 0:
+            return {
+                "id": "0",
+                "choices": [
+                    {
+                        "message": {
+                            "role": self.ASSISTANT,
+                            "content": "検索結果が見つかりませんでした。"
+                        }
+                    }
+                ]
+            }
+        hit_existing_question = search_results[0]["question"]
+        hit_existing_answer = search_results[0]["answer"]
 
         # Step 4: Generate answer using citation sources
-        chat_coroutine = await self.__answer_using_document(src_content, history, should_stream)
+        chat_coroutine = await self.__answer_using_document(
+            hit_existing_question, 
+            hit_existing_answer, 
+            history, 
+            should_stream)
         return chat_coroutine.to_json()
+
+    def __extract_keywords(self, text: str) -> str:
+        documents = [text]
+        vectorizer = TfidfVectorizer()
+        X = vectorizer.fit_transform(documents)
+        words = vectorizer.get_feature_names_out()
+        scores = X.toarray().flatten()
+        important_words = [words[i] for i in scores.argsort()[-5:]]  # Top 5 words
+        return " ".join(important_words)
     
     async def __embed_text(self, text: str):
         embedding_response = aoai_client.embeddings.create(
@@ -203,44 +224,55 @@ If you cannot generate a search query, return only the number 0.
         embedded_vector = embedding_response.data[0].embedding
         return embedded_vector
 
-    def __perform_vector_search(self, input_embedding: float):
+    def __perform_hybrid_search(self, input_embedding: float, search_text: str = "*"):
         AZURE_AI_SEARCH_API_KEY = os.getenv("AZURE_AI_SEARCH_API_KEY")
         key_credential = AzureKeyCredential(AZURE_AI_SEARCH_API_KEY)
         aisearch_client = SearchClient(
             endpoint=self.ai_search_endpoint,
             index_name=self.ai_search_index_name,
-            credential=key_credential
+            credential=DefaultAzureCredential(),
+            # credential=key_credential # マネージド ID 認証が失敗する場合はこちらを使用
         )
 
-        vector = VectorizedQuery(
+        k = 10
+        question_vector = VectorizedQuery(
             vector=input_embedding,
-            k_nearest_neighbors=3, 
-            fields="text_vector",
+            k_nearest_neighbors=k, 
+            fields="question_vector",
+        )
+        answer_vector = VectorizedQuery(
+            vector=input_embedding,
+            k_nearest_neighbors=k, 
+            fields="answer_vector",
         )
         item_paged = aisearch_client.search(
-            vector_queries=[vector],
-            search_text="*",
-            top=3,
-            select=["drive_id", "site_id", "item_id", "hit_id", "web_url", "chunk"],
+            vector_queries=[question_vector, answer_vector],
+            search_text=search_text,
+            top=k,
         )
         results: list[dict] = []
         for item in item_paged:
             results.append(item)
         return results
     
-    async def __answer_using_document(self, src_content: str, history: list[dict[str, str]], should_stream: bool = False):
+    async def __answer_using_document(
+            self,
+            hit_existing_question: str,
+            hit_existing_answer: str,
+            history: list[dict[str, str]], 
+            should_stream: bool = False):
         original_user_query = history[-1]["content"]
-        response_token_limit = 1024
+        user_content = "ユーザーの質問文: " + original_user_query + "\n\n類似した既存の質問: " + hit_existing_question + "\n\n類似した既存の質問に対する回答: " + hit_existing_answer
+        response_token_limit = 4096
         messages_token_limit = self.chatgpt_token_limit - response_token_limit
         answer_messages = self.get_messages_from_history(
             system_prompt=self.system_message_chat_conversation,
             model_id=self.chatgpt_model,
             history=history,
-            user_content=original_user_query + "\n\nSources:\n" + src_content,
+            user_content=user_content,
             max_tokens=messages_token_limit,
         )
 
-        # chat_coroutine = aoai_client.responses.create(
         completion = aoai_client.chat.completions.create(
             model=self.chatgpt_model,
             messages=answer_messages,
