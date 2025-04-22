@@ -32,7 +32,6 @@ APP_SERVICE_PRIVATE_ENDPOINT_NAME="qachat-pe-as-$RANDOM_SUFFIX"
 
 # Create a Private Endpoint for AI Search
 az network private-endpoint create --name $AI_SEARCH_PRIVATE_ENDPOINT_NAME --resource-group $RESOURCE_GROUP --vnet-name $VNET_NAME --subnet $AI_SEARCH_SUBNET_NAME --private-connection-resource-id "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Search/searchServices/$AI_SEARCH_NAME" --group-id searchService --connection-name "${AI_SEARCH_NAME}-connection"
-# NOTE! Run the following command after giving a custom sub domain name to OpenAI Service on Azure Portal
 # Create a Private Endpoint for OpenAI Service
 az network private-endpoint create --name $OPENAI_SERVICE_PRIVATE_ENDPOINT_NAME --resource-group $RESOURCE_GROUP --vnet-name $VNET_NAME --subnet $OPENAI_SERVICE_SUBNET_NAME --private-connection-resource-id "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.CognitiveServices/accounts/$OPENAI_SERVICE_NAME" --group-id account --connection-name "${OPENAI_SERVICE_NAME}-connection"
 # Create a Private Endpoint for App Service
