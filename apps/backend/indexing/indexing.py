@@ -80,7 +80,7 @@ def main():
             for line_number, row in enumerate(csv_reader, start=1):
                 if line_number < start_line:
                     continue
-                record = create_record_from_row(row)
+                record = create_record_from_row(row, csv_reader.fieldnames)
                 # Skip records labeled with "SKIPPED" for some reason in data cleaning
                 if record.description == "SKIPPED" or record.comments_and_work_notes == "SKIPPED":
                     continue

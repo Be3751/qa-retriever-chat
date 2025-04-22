@@ -4,8 +4,25 @@ import sys
 from datetime import datetime
 import concurrent.futures
 
-from modules.record import create_record_from_row
+from modules.record import create_record_from_row, Record
 from modules.prompt import cleanse_record
+
+def get_csv_headers(file_path, encoding='utf-8'):
+    """
+    Reads a CSV file and returns the list of column names (headers).
+    
+    :param file_path: Path to the CSV file.
+    :param encoding: Encoding of the CSV file (default is 'utf-8').
+    :return: List of column names.
+    """
+    try:
+        with open(file_path, mode='r', encoding=encoding) as file:
+            csv_reader = csv.reader(file)
+            headers = next(csv_reader)  # Read the first row as headers
+            return headers
+    except Exception as e:
+        print(f"Error reading CSV file: {e}")
+        return []
 
 def batch_cleanse_records(records):
     """
@@ -13,14 +30,28 @@ def batch_cleanse_records(records):
     """
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_to_index = {executor.submit(cleanse_record, record): index for index, record in enumerate(records)}
-        results: list[dict] = [None] * len(records)
+        results: list[Record] = [None] * len(records)
         for future in concurrent.futures.as_completed(future_to_index):
             index = future_to_index[future]
             results[index] = future.result()
     return results
 
-# CLI usage: python indexing/cleansing.py -f <file_path> -o <output_dir> -s <start_line>
+def batch_write_records(records: list[Record], writer: csv.DictWriter):
+    """
+    Write a batch of records to the CSV file using the provided writer.
+    """
+    results = batch_cleanse_records(records)
+    for result in results:
+        writer.writerow(result.__dict__)
+
 def main():
+    """
+    CLI Usage:
+    python cleansing.py -f <file_path> -o <output_dir> -s <start_line>
+    -f: Path to the input CSV file.
+    -o: Path to the directory to save the output CSV file.
+    -s: Line number to start processing from (default is 1).
+    """
     start_time = datetime.now()
 
     file_path = sys.argv[2].strip()
@@ -32,7 +63,6 @@ def main():
     if (start_line - 1) % BATCH_SIZE_FOR_RECORDS != 0:
         print(f"Error: start_line must be a multiple of {BATCH_SIZE_FOR_RECORDS} plus 1 (e.g., 1, 101, 201, ...).")
         sys.exit(1)
-
     output_file_path = os.path.join(output_dir, 'updated_' + os.path.basename(file_path))
     print(f"Processing file: {file_path}")
     print(f"Output file: {output_file_path}")
@@ -42,13 +72,7 @@ def main():
     print(f"Processing started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     mode = 'a' if start_line > 1 else 'w'
     with open(output_file_path, mode=mode, newline='', encoding='utf-8') as output_file:
-        fieldnames = [
-            '番号', '開始日時', 'タグ', '緊急度', 'ステータス', 'ウォッチリスト', 'サービス', 'サービス2', 'サービス3', 
-            'サービスオファリング', 'サービスオファリング表示名', '簡単な説明', '問い合わせユーザー', '優先度', 
-            'アサイン先グループ', 'アサイン先', '更新日時', '更新者', '作業開始日時', '作業終了日時', 'クローズ日時', 
-            '部門別カテゴリ1', '説明', 'コメントと作業メモ', '保留理由'
-        ]
-        writer = csv.DictWriter(output_file, fieldnames=fieldnames)
+        writer = csv.DictWriter(output_file, fieldnames=get_csv_headers(file_path, encoding='shift-jis'))
         if start_line == 1:
             writer.writeheader()
 
@@ -59,23 +83,19 @@ def main():
                 for line_number, row in enumerate(csv_reader, start=1):
                     if line_number < start_line:
                         continue
-                    record = create_record_from_row(row)
+                    record = create_record_from_row(row, csv_reader.fieldnames)
                     records.append(record)
                     if len(records) == BATCH_SIZE_FOR_RECORDS:
                         elapsed_time = datetime.now() - start_time
                         print(f"Processing records {line_number - BATCH_SIZE_FOR_RECORDS + 1} to {line_number}... (Elapsed time: {elapsed_time})")
-                        results = batch_cleanse_records(records)
-                        for result in results:
-                            writer.writerow(result)
+                        batch_write_records(records, writer)
                         print(f"Processed lines up to: {line_number}")
                         records = []
                 # Process any remaining records
                 if records:
                     elapsed_time = datetime.now() - start_time
                     print(f"Processing records {line_number - BATCH_SIZE_FOR_RECORDS + 1} to {line_number}... (Elapsed time: {elapsed_time})")
-                    results = batch_cleanse_records(records)
-                    for result in results:
-                        writer.writerow(result)
+                    batch_write_records(records, writer)
             except Exception as e:
                 print(f"Exception occurred between lines {line_number - BATCH_SIZE_FOR_RECORDS + 1} and {line_number}: {e}")
                 next_start_line = (line_number // BATCH_SIZE_FOR_RECORDS) * BATCH_SIZE_FOR_RECORDS + 1

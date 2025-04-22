@@ -34,38 +34,8 @@ class Record:
             return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
         return None
 
-def create_record_from_row(row):
-    return Record(
-        row['番号'],
-        row['開始日時'],
-        row['タグ'],
-        row['緊急度'],
-        row['ステータス'],
-        row['ウォッチリスト'],
-        row['サービス'],
-        row['サービス2'],
-        row['サービス3'],
-        row['サービスオファリング'],
-        row['サービスオファリング表示名'],
-        row['簡単な説明'],
-        row['問い合わせユーザー'],
-        row['優先度'],
-        row['アサイン先グループ'],
-        row['アサイン先'],
-        row['更新日時'],
-        row['更新者'],
-        row['作業開始日時'],
-        row['作業終了日時'],
-        row['クローズ日時'],
-        row['部門別カテゴリ1'],
-        row['説明'],
-        row['コメントと作業メモ'],
-        row['保留理由']
-    )
-
-def parse_csv(file_path):
-    with open(file_path, mode='r', encoding='shift-jis', errors='ignore') as file:
-        csv_reader = csv.DictReader(file)
-        for row in csv_reader:
-            record = create_record_from_row(row)
-            yield record
+    def to_dict(self, keys: list[str]):
+        return {key: getattr(self, key) for key in keys}
+        
+def create_record_from_row(row: dict, keys: list[str]):
+    return Record(*(row[key] for key in keys))

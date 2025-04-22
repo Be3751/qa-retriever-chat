@@ -18,8 +18,8 @@ token_provider = get_bearer_token_provider(
 )
 client = AzureOpenAI(
     azure_endpoint=endpoint,
-    azure_ad_token_provider=token_provider, 
-    # api_key=os.getenv("AZURE_OPENAI_API_KEY"), # マネージド ID 認証が失敗する場合はこちらを使用
+    # azure_ad_token_provider=token_provider, 
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"), # マネージド ID 認証が失敗する場合はこちらのコメントアウトを解除して DefaultAzureCredentialを使用する引数をコメントアウト
     api_version=api_version,
 )
 
@@ -90,31 +90,7 @@ def cleanse_record(record: Record)-> dict:
         user_prompt=record.comments_and_work_notes
     )
     
-    updated_record = {
-        '番号': record.number,
-        '開始日時': record.start_date,
-        'タグ': record.tag,
-        '緊急度': record.urgency,
-        'ステータス': record.status,
-        'ウォッチリスト': record.watchlist,
-        'サービス': record.service,
-        'サービス2': record.service2,
-        'サービス3': record.service3,
-        'サービスオファリング': record.service_offering,
-        'サービスオファリング表示名': record.service_offering_display_name,
-        '簡単な説明': record.short_description,
-        '問い合わせユーザー': record.user,
-        '優先度': record.priority,
-        'アサイン先グループ': record.assigned_group,
-        'アサイン先': record.assigned_to,
-        '更新日時': record.update_date,
-        '更新者': record.updater,
-        '作業開始日時': record.work_start_date,
-        '作業終了日時': record.work_end_date,
-        'クローズ日時': record.close_date,
-        '部門別カテゴリ1': record.department_category1,
-        '説明': response_description,
-        'コメントと作業メモ': response_comments_and_work_notes,
-        '保留理由': record.hold_reason
-    }
+    updated_record = record
+    updated_record.description = response_description
+    updated_record.comments_and_work_notes = response_comments_and_work_notes
     return updated_record

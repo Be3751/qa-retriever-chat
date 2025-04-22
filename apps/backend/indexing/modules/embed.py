@@ -1,6 +1,6 @@
 import os
 
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import AzureOpenAI, RateLimitError
 from dotenv import load_dotenv
 
@@ -13,13 +13,16 @@ api_key = os.getenv("AZURE_OPENAI_API_KEY", "REPLACE_WITH_YOUR_KEY_VALUE_HERE")
 api_version = os.getenv("AZURE_OPENAI_EMBEDDING_API_VERSION", "2023-05-15")
 print(f"Using OpenAI endpoint: {endpoint}, deployment: {deployment}, deployment2: {deployment2}, api_version: {api_version}")
 
-# credential = DefaultAzureCredential()
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    'https://cognitiveservices.azure.com/.default',
+)
 
 openai_client = AzureOpenAI(
     azure_endpoint=endpoint,
-    api_key=api_key,
+    api_key=api_key, # マネージド ID 認証が失敗する場合はこちらのコメントアウトを解除して DefaultAzureCredentialを使用する引数をコメントアウト
     api_version=api_version,
-    # azure_ad_token_provider=credential
+    # azure_ad_token_provider=token_provider,
 )
 
 def embed_text(text: str) -> list[float]:
