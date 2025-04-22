@@ -26,18 +26,18 @@ AZURE_AI_SEARCH_INDEX_NAME = os.getenv("AZURE_AI_SEARCH_INDEX_NAME")
 AZURE_AI_SEARCH_API_KEY = os.getenv("AZURE_AI_SEARCH_API_KEY")
 
 credential = DefaultAzureCredential()
-# key_credential = AzureKeyCredential(AZURE_AI_SEARCH_API_KEY) # マネージド ID 認証が失敗する場合はこちらを使用
+key_credential = AzureKeyCredential(AZURE_AI_SEARCH_API_KEY) # マネージド ID 認証が失敗する場合はこちらのコメントアウトを解除して DefaultAzureCredentialを使用する引数をコメントアウト
 
 search_index_client = SearchIndexClient(
     endpoint=AZURE_AI_SEARCH_ENDPOINT, 
-    # credential=key_credential # マネージド ID 認証が失敗する場合はこちらを使用
-    credential=credential
+    credential=key_credential # マネージド ID 認証が失敗する場合はこちらのコメントアウトを解除して DefaultAzureCredentialを使用する引数をコメントアウト
+    # credential=credential
 )
 search_client = SearchClient(
     endpoint=AZURE_AI_SEARCH_ENDPOINT,
     index_name=AZURE_AI_SEARCH_INDEX_NAME,
-    # credential=key_credential # マネージド ID 認証が失敗する場合はこちらを使用
-    credential=credential
+    credential=key_credential # マネージド ID 認証が失敗する場合はこちらのコメントアウトを解除して DefaultAzureCredentialを使用する引数をコメントアウト
+    # credential=credential
 )
 
 def initialize_index():
