@@ -6,6 +6,7 @@ tiktoken
 azure-search-documents
 azure-storage-blob
 gunicorn
+uvicorn
 aiohttp
 opentelemetry-instrumentation==0.50b0
 msal

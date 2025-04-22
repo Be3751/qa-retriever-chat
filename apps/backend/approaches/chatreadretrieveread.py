@@ -22,8 +22,8 @@ token_provider = get_bearer_token_provider(
 )
 aoai_client = AzureOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT_URL"),
-    credential=token_provider,
-    # api_key=os.getenv("AZURE_OPENAI_API_KEY"), # マネージド ID 認証が失敗する場合はこちらを使用
+    azure_ad_token_provider=token_provider,
+    # api_key=os.getenv("AZURE_OPENAI_API_KEY"), # マネージド ID 認証が失敗する場合はこちらのコメントアウトを解除して DefaultAzureCredentialを使用する引数をコメントアウト
     api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
 )
 
@@ -230,8 +230,8 @@ class ChatReadRetrieveReadApproach(Approach):
         aisearch_client = SearchClient(
             endpoint=self.ai_search_endpoint,
             index_name=self.ai_search_index_name,
-            credential=DefaultAzureCredential(),
-            # credential=key_credential # マネージド ID 認証が失敗する場合はこちらを使用
+            # credential=DefaultAzureCredential(),
+            credential=key_credential # マネージド ID 認証が失敗する場合はこちらのコメントアウトを解除して DefaultAzureCredentialを使用する引数をコメントアウト
         )
 
         k = 10
@@ -245,6 +245,8 @@ class ChatReadRetrieveReadApproach(Approach):
             k_nearest_neighbors=k, 
             fields="answer_vector",
         )
+        # print("質問ベクトル:", question_vector)
+        # print("回答ベクトル:", answer_vector)
         item_paged = aisearch_client.search(
             vector_queries=[question_vector, answer_vector],
             search_text=search_text,
@@ -253,6 +255,7 @@ class ChatReadRetrieveReadApproach(Approach):
         results: list[dict] = []
         for item in item_paged:
             results.append(item)
+        print("検索結果:", results)
         return results
     
     async def __answer_using_document(
